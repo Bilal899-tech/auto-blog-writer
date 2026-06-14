@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auto Blog Writer</title>
+  <meta name="author" content="Founder Bilal - nexagaze">
+  <meta name="keywords" content="AI blog writer, blog post generator, SEO content, Ollama blog, HTML generator, nexagaze, bilal, AI, open source, behavior tracking">
+  <link rel="icon" href="data:,">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: #0f172a; min-height: 100vh; padding: 2rem; }
+    .container { max-width: 860px; margin: 0 auto; }
+    h1 { color: #38bdf8; text-align: center; }
+    .subtitle { color: #64748b; text-align: center; font-size: 0.85rem; margin-bottom: 1.5rem; }
+    .input-row { display: flex; gap: 0.5rem; }
+    .input-row input { flex: 1; padding: 0.75rem 1rem; background: #1e293b; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; font-size: 0.9rem; outline: none; }
+    .input-row input:focus { border-color: #38bdf8; }
+    .input-row button { padding: 0.75rem 1.5rem; background: #38bdf8; color: #0f172a; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .input-row button:hover { background: #0ea5e9; }
+    .input-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .input-row .spinner { display: none; width: 20px; height: 20px; border: 2px solid #334155; border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.8s linear infinite; margin: auto 0; }
+    .input-row .spinner.show { display: inline-block; }
+    .status { color: #94a3b8; font-size: 0.82rem; margin-top: 0.5rem; min-height: 1.5rem; }
+    .preview { background: #1e293b; border-radius: 12px; margin-top: 1.5rem; overflow: hidden; display: none; }
+    .preview.show { display: block; }
+    .preview-header { padding: 1rem 1.25rem; background: #0f172a; display: flex; justify-content: space-between; align-items: center; }
+    .preview-header h3 { color: #e2e8f0; font-size: 0.95rem; }
+    .preview-header .actions { display: flex; gap: 0.5rem; }
+    .preview-header .actions button { padding: 0.5rem 1rem; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.82rem; }
+    .btn-view { background: #38bdf8; color: #0f172a; }
+    .btn-view:hover { background: #0ea5e9; }
+    .btn-new { background: #334155; color: #94a3b8; }
+    .btn-new:hover { background: #475569; }
+    .preview-body { padding: 1.5rem 1.5rem; max-height: 450px; overflow-y: auto; }
+    .preview-body h2 { color: #38bdf8; font-size: 1.3rem; margin-bottom: 0.3rem; }
+    .preview-body .meta { color: #64748b; font-size: 0.8rem; margin-bottom: 1rem; }
+    .preview-body .meta span { margin-right: 1rem; }
+    .preview-body p { color: #cbd5e1; font-size: 0.88rem; line-height: 1.7; margin-bottom: 0.8rem; }
+    .preview-body h3 { color: #94a3b8; font-size: 1.05rem; margin: 1.2rem 0 0.5rem; }
+    .preview-body .tags { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 1rem; }
+    .preview-body .tags span { background: #0f172a; color: #64748b; padding: 0.2rem 0.6rem; border-radius: 5px; font-size: 0.78rem; }
+    .blog-list { margin-top: 2rem; }
+    .blog-list h2 { color: #94a3b8; font-size: 1rem; margin-bottom: 0.75rem; }
+    .blog-card { background: #1e293b; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+    .blog-card .info { flex: 1; min-width: 0; }
+    .blog-card .info h4 { color: #e2e8f0; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .blog-card .info .meta-sm { color: #64748b; font-size: 0.75rem; }
+    .blog-card a { color: #38bdf8; text-decoration: none; font-size: 0.82rem; white-space: nowrap; }
+    .blog-card a:hover { text-decoration: underline; }
+    .empty { color: #475569; text-align: center; padding: 2rem; font-size: 0.9rem; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Auto Blog Writer</h1>
+    <p class="subtitle">Enter a topic — AI writes a complete SEO-optimized blog post with HTML</p>
+
+    <div class="input-row">
+      <input type="text" id="topicInput" placeholder="e.g. top 10 SEO strategies for 2026" />
+      <input type="text" id="keywordsInput" placeholder="optional: keywords" style="max-width:180px;flex:0.4;" />
+      <button id="generateBtn">Generate</button>
+      <div class="spinner" id="spinner"></div>
+    </div>
+    <div class="status" id="status">Enter a topic above to generate a blog post</div>
+
+    <div class="preview" id="preview">
+      <div class="preview-header">
+        <h3 id="previewTitle">Post Preview</h3>
+        <div class="actions">
+          <button class="btn-view" id="viewPostBtn">Open Published Post</button>
+          <button class="btn-new" id="newPostBtn">New Post</button>
+        </div>
+      </div>
+      <div class="preview-body" id="previewBody"></div>
+    </div>
+
+    <div class="blog-list" id="blogList">
+      <h2 id="postsCount">Published Posts (0)</h2>
+      <div id="postsBody"><div class="empty">No posts yet. Generate one above.</div></div>
+    </div>
+  </div>
+
+  <script>
+    const topicInput = document.getElementById('topicInput');
+    const keywordsInput = document.getElementById('keywordsInput');
+    const generateBtn = document.getElementById('generateBtn');
+    const spinner = document.getElementById('spinner');
+    const statusEl = document.getElementById('status');
+    const preview = document.getElementById('preview');
+    const previewTitle = document.getElementById('previewTitle');
+    const previewBody = document.getElementById('previewBody');
+    const viewPostBtn = document.getElementById('viewPostBtn');
+    const newPostBtn = document.getElementById('newPostBtn');
+    const postsBody = document.getElementById('postsBody');
+    const postsCount = document.getElementById('postsCount');
+
+    let lastPostId = null;
+
+    async function loadPosts() {
+      const res = await fetch('/api/posts');
+      const posts = await res.json();
+      postsCount.textContent = `Published Posts (${posts.length})`;
+      if (posts.length === 0) {
+        postsBody.innerHTML = '<div class="empty">No posts yet. Generate one above.</div>';
+        return;
+      }
+      postsBody.innerHTML = posts.map(p => `<div class="blog-card">
+        <div class="info">
+          <h4>${p.title}</h4>
+          <div class="meta-sm">${p.reading_time || '?'} min · ${new Date(p.created_at).toLocaleDateString()} · ${(p.tags || []).slice(0, 3).join(', ')}</div>
+        </div>
+        <a href="/post/${p.id}" target="_blank">Open →</a>
+      </div>`).join('');
+    }
+
+    generateBtn.addEventListener('click', async () => {
+      const topic = topicInput.value.trim();
+      if (!topic) return;
+      generateBtn.disabled = true;
+      spinner.classList.add('show');
+      preview.classList.remove('show');
+      statusEl.textContent = 'Generating blog post with AI...';
+      try {
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topic, keywords: keywordsInput.value.trim() })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Generation failed');
+        }
+        const data = await res.json();
+        const post = data.post;
+
+        lastPostId = post.id;
+        previewTitle.textContent = post.title;
+
+        const sections = (post.content || []).map(s =>
+          `<h3>${s.heading}</h3>${s.body.split('\n').filter(Boolean).map(p => `<p>${p}</p>`).join('')}`
+        ).join('');
+
+        previewBody.innerHTML = `
+          <h2>${post.title}</h2>
+          <div class="meta"><span>${post.reading_time || '?'} min read</span><span>${new Date(post.created_at).toLocaleDateString()}</span></div>
+          <p style="color:#94a3b8;font-style:italic;">${post.intro || ''}</p>
+          ${sections}
+          <p style="border-top:1px solid #1e293b;padding-top:0.8rem;margin-top:0.8rem;">${post.conclusion || ''}</p>
+          <div class="tags">${(post.tags || []).map(t => `<span>${t}</span>`).join('')}</div>
+        `;
+
+        viewPostBtn.onclick = () => window.open('/post/' + post.id, '_blank');
+        preview.classList.add('show');
+        statusEl.textContent = 'Blog post generated and saved!';
+        loadPosts();
+      } catch (err) {
+        statusEl.textContent = 'Error: ' + err.message;
+      }
+      generateBtn.disabled = false;
+      spinner.classList.remove('show');
+    });
+
+    newPostBtn.addEventListener('click', () => {
+      preview.classList.remove('show');
+      topicInput.value = '';
+      keywordsInput.value = '';
+      topicInput.focus();
+      statusEl.textContent = 'Enter a new topic';
+    });
+
+    topicInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') generateBtn.click(); });
+
+    loadPosts();
+  </script>
+
+  <div style="text-align:center;padding:1rem;color:#475569;font-size:0.75rem;border-top:1px solid #1e293b;">
+    nexagaze project &mdash; built by Founder Bilal &bull;
+    <a href="mailto:ai@nexagaze.com" style="color:#64748b;">ai@nexagaze.com</a> &bull;
+    <a href="https://wa.me/9203103860653" style="color:#64748b;">03103860653</a>
+  </div>
+</body>
+</html>
